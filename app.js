@@ -32,7 +32,7 @@ firebase.initializeApp(firebaseConfig)
 
 //------------test-----------------------//
 const collectionName = 'articles';
-const documentId = 'Physics';
+const documentId = 'default';
 //---------------------------------------//
 const app = express()
 var bodyParser = require("body-parser")
@@ -178,7 +178,6 @@ function filterDuplicates(d) {
             b.push(e)
             m.push(e.class)
         }
-
     })
     return b
 }
@@ -207,7 +206,7 @@ app.get('/searchAns', (req, res) => {
                 articles.push(doc.data());
             });
             let updatedarticles = fetchdata(articles)
-            console.log(articles[5])
+            //console.log(articles[5])
 
             res.render('searchAnswers.ejs', { articles: JSON.stringify(articles[5]), documents: JSON.stringify(articles[0]) });
         })
@@ -226,10 +225,8 @@ app.post('/getAll', (req, res) => {
             querySnapshot.forEach((doc) => {
                 if (doc != null) {
                     articles.push(doc.data());
-
                 }
             });
-
             let refinedArticles = fetchdata(articles)
             let topicnames = refinedArticles.map(d => d.topicName).filter(dv => dv != null)
             res.send({ alltopicnames: topicnames });
@@ -242,94 +239,17 @@ app.post('/getAll', (req, res) => {
 
 app.post('/goBack', (req, res) => {
     let a = []
-    
+
     const collectionName = 'articles';
     let db = firebase.firestore()
-    console.log(req.body)
-    // if (documentId != 'All' && documentId != 'default') {
-    //     let updateddata
-    //     const docRef = db.collection(collectionName).doc(documentId);
-    //     docRef.get()
-    //         .then((doc) => {
-    //             if (doc.exists) {
-    //                 const data = doc.data();
-    //                 a.push(data)
-    //                 let arraydata = fetchdata1(data)
+   // console.log(req.body)
+    filter1 = req.body.grade
+    filter2 = req.body.subject
+    filter3 = req.body.topicnames
+    // req.session.grade = filter1
+    // req.session.topic = filter3
+    console.log(req.session)
 
-    //                 let refinedA = fetchdata1(data)
-    //                 if (filter2 != 'default' && filter1 != 'default') {
-    //                     updateddata = refinedA.filter(e => e.class == filter2 && e.topicName == filter1)
-    //                 }
-    //                 else if (filter2 != 'default') {
-    //                     updateddata = refinedA.filter(e => e.class == filter2)
-    //                 }
-    //                 else if (filter1 != 'default') {
-    //                     updateddata = refinedA.filter(e => e.topicName == filter1)
-    //                 }
-    //                 else {
-    //                     updateddata = refinedA
-    //                 }
-    //                 res.send({
-    //                     articles: JSON.stringify(updateddata), allarticles: updateddata, goback:JSON.stringify(documentId), alltopics: res.locals.subjects, alltop: JSON.stringify(res.locals.subjects)
-    //                     , grade: JSON.stringify(req.session.grade), topic: JSON.stringify(req.session.topic)
-    //                 })
-
-    //             } else {
-    //                 console.log('Document not found!');
-    //             }
-    //         })
-    //         .catch((error) => {
-    //             console.log('Error getting document:', error);
-    //         });
-    // } else {
-    //     console.log("else part is running")
-    //     console.log(documentId)
-    //     if(!req.session.grade){
-    //         req.session.grade="default"
-    //     }
-    //     if(!req.session.topic){
-    //         req.session.topic="default"
-    //     }
-    //     let updateddata
-    //     db.collection(collectionName)
-    //         .get()
-    //         .then((querySnapshot) => {
-    //             const articles = [];
-    //             querySnapshot.forEach((doc) => {
-    //                 articles.push(doc.data());
-    //             });
-
-    //             let refinedA = fetchdata(articles)
-    //             if (filter2 != 'default' && filter1 != 'default') {
-    //                 updateddata = refinedA.filter(e => e.class == filter2 && e.topicName == filter1)
-    //             }
-    //             else if (filter2 != 'default') {
-    //                 updateddata = refinedA.filter(e => e.class == filter2)
-
-    //             }
-    //             else if (filter1 != 'default') {
-    //                 updateddata = refinedA.filter(e => e.topicName == filter1)
-    //             }
-    //             else {
-    //                 updateddata = refinedA
-    //             }
-    //             res.send({
-    //                 articles: JSON.stringify(updateddata), allarticles: updateddata, goback: JSON.stringify(documentId), alltopics: res.locals.subjects, alltop: JSON.stringify(res.locals.subjects)
-    //                 , grade: JSON.stringify(req.session.grade), topic: JSON.stringify(req.session.topic)
-    //             })
-    //         })
-    //         .catch((error) => {
-    //             console.log('Error getting documents:', error);
-    //         });
-    // }
-    // console.log(req.body.grade)
-    // console.log(req.body.subject)
-
-    filter1=req.body.grade
-    // filter2=req.body.subject
-    filter3=req.body.topicnames
-  req.session.grade=filter1
-     req.session.topic=filter3
     db.collection(collectionName)
         .get()
         .then((querySnapshot) => {
@@ -337,32 +257,27 @@ app.post('/goBack', (req, res) => {
             querySnapshot.forEach((doc) => {
                 articles.push(doc.data());
             });
-
             let refinedA = fetchdata(articles).filter(item => !Array.isArray(item))
-            console.log(refinedA)
             if (filter3 != 'default' && filter1 != 'default') {
                 updateddata = refinedA
             }
-            else if (filter1 != 'default' && filter3=='default') {
+            else if (filter1 != 'default' && filter3 == 'default') {
                 updateddata = refinedA.filter(e => e.class == filter1)
-
             }
-            else if (filter1 == 'default' && filter3!='default') {
+            else if (filter1 == 'default' && filter3 != 'default') {
                 updateddata = refinedA.filter(e => e.topicName == filter3)
             }
             else {
                 updateddata = refinedA
             }
-            console.log(res.locals.subjects)
             res.send({
-                articles: JSON.stringify(updateddata), allarticles: updateddata, goback: JSON.stringify(documentId), alltopics: res.locals.subjects, alltop: JSON.stringify(req.body.subject)
-                , grade: JSON.stringify(req.session.grade), topic: JSON.stringify(req.session.topic)
+                articles: JSON.stringify(updateddata), allarticles: updateddata, goback: JSON.stringify(documentId), alltopics: res.locals.subjects, alltop: JSON.stringify(filter2)
+                , grade: JSON.stringify(filter1), topic: JSON.stringify(filter3)
             })
         })
         .catch((error) => {
             console.log('Error getting documents:', error);
         });
-
 })
 
 function fetchdata1(data) {
@@ -427,7 +342,7 @@ app.post('/docdata', function (req, res) {
                     articles.push(doc.data());
                 });
 
-                let filterdupdate = fetchdata(articles)
+                let filterdupdate = fetchdata(articles).filter(item => !Array.isArray(item))
                 if (filter2 != 'default' && filter1 != 'default') {
                     updateddata = filterdupdate.filter(e => e.class == filter2 && e.topicName == filter1)
                 }
@@ -457,7 +372,11 @@ app.post('/docdata', function (req, res) {
 })
 
 app.post('/fetchPage', function (req, res) {
-    res.send({ articledata: req.body.articlevalue })
+    // req.session.grade=req.body.privi.grade
+    // req.session.topic=req.body.privi.topic
+    // req.session.subject=req.body.privi.subject
+    // console.log(req.session)
+    res.send({ articledata: req.body.articlevalue,previousdata:req.body.privi })
 })
 
 app.set("view engine", "hbs")
