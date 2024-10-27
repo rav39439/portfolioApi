@@ -1,464 +1,266 @@
-
-const express = require('express')
+var express = require("express")
+const path = require('path')
+var session = require("express-session")
+const mongoose = require('mongoose')
 const jwt = require('jsonwebtoken')
+const cookieparser = require('cookie-parser')
+const cors = require('cors');
+const crypto = require('crypto');
 const nodemailer = require('nodemailer')
-const Qs = require('query-string');
+const { GridFsStorage } = require('multer-gridfs-storage');
+const Grid = require('gridfs-stream');
+///const methodOverride = require('method-override');
+//Grid = require('mongodb').Grid
+Grid.mongo = mongoose.mongo;
+//const fileUpload=require("express-fileupload")
+//const pdfParse=require("pdf-parse")
+var app = express()
+
+const fs = require("fs")
+const multer = require('multer')
+//const { ObjectId } = require('mongodb');
+var bodyParser = require('body-parser')
 
 const dotenv = require("dotenv");
 require('dotenv').config()
-var firebase = require('firebase')
-const authdomain = process.env.authDomain;
-const projectId = process.env.projectId;
-const storageBucket = process.env.storageBucket;
-const messagingSenderId = process.env.messagingSenderId;
-const appId = process.env.appId;
-const measurmentId = process.env.measurmentId;
-const APIKEY = process.env.APIKEY;
-var firebaseConfig = {
-    apiKey: APIKEY,
-    authDomain: authdomain,
-    projectId: projectId,
-    storageBucket: storageBucket,
-    messagingSenderId: messagingSenderId,
-    appId: appId,
-    measurementId: measurmentId
-}
+app.use(cookieparser())
 
-firebase.initializeApp(firebaseConfig)
-
-
-
-
-
-//------------test-----------------------//
-const collectionName = 'articles';
-const documentId = 'default';
-//---------------------------------------//
-const app = express()
-var bodyParser = require("body-parser")
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-var ObjectId = require("mongodb").ObjectId
-const DATABASE = process.env.DATABASE;
-// Now you can use Firebase services
-const PASSKEY = process.env.PASSKEY;
-const date = require('date-and-time')
-const sendgridtransport = require('nodemailer-sendgrid-transport')
-const path = require("path")
-const hbs = require("hbs")
-const bcrypt = require('bcryptjs');
-var bodyParser = require("body-parser")
-app.use(bodyParser.urlencoded())
-app.engine('html', require('ejs').renderFile);
-const cors = require('cors')
-app.use(cors(), function (req, res, next) {
-    res.header("Access-Control-Allow-Origin", "*"); // update to match the domain you will make the request from
-    res.header(
-        "Access-Control-Allow-Headers",
-        "Origin, X-Requested-With, Content-Type, Accept"
-    );
-    next();
-});
-// const {
-//     userJoin,
-//     getCurrentUser,
-//     userLeave,
-//     getRoomUsers
-// } = require('./utils/users');
-// const formatMessage = require('./utils/messeges');
-const formidable = require('formidable')
-const fs = require('fs')
-const pathset = path.join(__dirname, "/Templates/partials")
-const setpath = path.join(__dirname, "/Templates/views")
-hbs.registerPartials(pathset)
+// app.use(
+//     session({
+//       secret: 'ugkufyufy',
+//       resave: false,
+//       saveUninitialized: false,
+//       cookie: {
+//         maxAge: 20000,
+//         secure: false,
+//       },
+//     })
+//   );
+  
+const MongodbSession = require('connect-mongodb-session')(session);
+console.log(process.env.URL)
+const store = new MongodbSession({
+    uri: process.env.URL,
+    collection: "mysessions",
 
-//--------------------mongodb-------------------------------------------------------------
+})
+
+
 var http = require("http").createServer(app)
 var io = require("socket.io")(http, {
     cors: {
-        origin: "https://neweducationworld.onrender.com",
-        //origin: "http://localhost:8700",
+        // origin: "https://newblogecomm.herokuapp.com/",
+        origin: "http://127.0.0.1:5500",
         credentials: true
     }
 })
-var session = require("express-session");
+
+app.use(cors({
+    origin: "http://127.0.0.1:5500" // Allow requests only from this origin
+}));
+
+const bcrypt = require('bcrypt');
+var bodyParser = require("body-parser")
+var ObjectId = require("mongodb").ObjectId
+app.use(bodyParser.urlencoded())
+app.get('/public', express.static('public'));
+app.use(express.static('public'));
+app.use("/public", express.static(__dirname + "/public"))
+// app.use(session({
+//     key:"admin",
+//     secret:"any random string",
+//     resave: true, 
+//     saveUninitialized: true,
+//     cookie: { maxAge:24 * 60 * 60 * 1000 },
+//     store:store
+// }))
+
 
 app.use(session({
-    key: "admin",
-    secret: "any random string",
-    resave: true,
-    saveUninitialized: true,
-    cookie: { maxAge: 24 * 60 * 60 * 1000 }
-}))
-const admin = require('firebase-admin');
+    secret: "your_secret_key", // Replace with a secure key in production
+    resave: false,
+    saveUninitialized: false,
+    store: store,
+    cookie: { maxAge: 300000 } // Session valid for 5 minutes
+}));
+function newmiddle1(req, res, next) {
+    let userdata = req.body
+    req.session.email = userdata.username
+    req.session.organization = userdata.organization
 
-serviceAccount = {
-    type: process.env.type,
-    project_id: process.env.project_id,
-    private_key_id: process.env.private_key_id,
-    private_key: "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDXB28gjePCkYxz\nsJZjEptXobG601arolRsKJJ6bZUCF2ADs0Zaq+SylnnLfdaX7gUZ8lSrsk6ff3al\nt3yxSgnfI4T8UhRbW5hj5Ps4tlEqZcH0k2JYfwLGwzoV68XJqkmC8fob7F9784lL\n30wrwMdX+3etqsTuDSermybVDpSeHaeyFJ7Iy/ovuVQdPNckrtzXM2/8UBQM9pdL\neQc840GCznF1/NCR4T4UyKaZOc+DAdBX/6SfUB95wF8OBZ65DzTSakg6JeVlzaKo\n5AR240QEMaifW4En2yB7R5lJPgtEw7DsmpAx1h6CzMe1LDVKsHf4/jPKnjeAsd9w\nj9Zu88Y7AgMBAAECggEAZ2ld2kwiwwn4gBLm4FKsfqJ2tSC6R+TTsQh6GYLl7JGN\nTXpEVYrhe7m+bUzhjUOdFHNkoQYppa9JQj1SLHks8jFE3Ywj2iPcz/3pi8ayli9F\n7feLjn/Wt/xfzPcMsgXBQMZawF8XNKdU2jZTjZ8yv29iiRTdjJarA26kaEaQ1tEO\ndInD4q45exa+sLOSe2OaHTIBNb2VQEhMoCMEh1DcvOlQG95qvNQJYaa82+ppkhFE\nHQIfOiUyyekbuaGFybfpuo1FfIFvlhdgXUKe1WhccveAN9Yzq5SHS1O5B2dBG5+H\n1kVl4UhNB0FCWj29ZTg5Hg5HPYvEJVQQ/JfmtojXUQKBgQDx20Nsi3MNzVoTsC97\no7Gn3DolpQorlNHCjt9O7uomXWP0tQI1Y0Hp37AOmBG5xi5K+al2VTYV+y4E/HpZ\n/T1f2UGZAPWZmzN14FQcX8VF59Q90H/EqiTDzeyIe0oCn4YgJvGMOOr519ffTZPU\nYPqVlrXCcDQZiJkJZ17hnx27dQKBgQDjmowvdUsMkhCMRuQq5FdFgs+WRUilN6f3\ni6h7H9fWI/xr2YlgNCv5Ra5RH6ddvxPVC+SYl67QiBNevbHvgQQtvyhDBPRaOHUN\nWEVXvWNXpAZR4Lld1cXu/oWsLP+lAnrUH8q8/mhjIdlkfFKcT9wz6eouO0gSGgOi\nWy/sGeY07wKBgG1AAoDxrRM7A8mI+Kn9E68jyBBhMOrm2qnsJ+tb+OFDpndPnKPJ\nJmki5kBxaPBmGVs809PkQf5D7FHMSuiDgEnftcYLrOWqOeCxaM04ZcBiLHmPyWdp\nBBp+1q4AIzp0HP5BGTOiMmKRoa35OSHifM89uPUQAjjWf2rECxQX8DJRAoGBANMh\nuE0F51p/3G3kDSBktTg8AkkJeDwbBusxWFbu0Q9KTovVPgRKIUiZBP0n+d+Sstj8\nsU+D1ZyHvkAyg+8CpVeybazN2cYffSWl7p1Xh+HyvBIT/qA2/+eVn3Z6P6NYS4ye\n+TicX0UmTz1RvmhWBJT7tkqwn0h7bUecgzXnSI9tAoGAfjDVvuSPLhDgfMi0P9iM\nuFesBV2wyE0XfP4pn30C45hpRlSdLGBQiWSycTKjl9Lg3jz2CSGXbp/cT1QUDb+K\nreyiVevnS4G5kmVFa737mi0VRtaOqiCqITwjA+DJXncn5f8LBYEqQ09N3GWJ7gt9\nrS196gIcwy1yG1lWiXE5MRM=\n-----END PRIVATE KEY-----\n",
-    client_email: process.env.client_email,
-    client_id: process.env.client_id,
-    auth_uri: process.env.auth_uri,
-    token_uri: process.env.token_uri,
-    auth_provider_x509_cert_url: process.env.auth_provider_x509_cert_url,
-    client_x509_cert_url: process.env.client_x509_cert_url
+    next()
 }
 
 
 
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    databaseURL: 'https://mynewproject.firebaseio.com'
-});
 
-app.use(async (req, res, next) => {
-    try {
-        const collectionName = 'articles';
-        let db = firebase.firestore()
-        let topicnames = []
-        db.collection(collectionName)
-            .get()
-            .then((querySnapshot) => {
-                const articles = [];
-                querySnapshot.forEach((doc) => {
-                    articles.push(doc.data());
-                });
+const conn = mongoose.createConnection(process.env.URL, { useNewUrlParser: true, useUnifiedTopology: true });
 
-                let refinedArticles = fetchdata(articles)
-                res.locals.articles = refinedArticles
-                topicnames = refinedArticles.map(d => ({ topic: d.topicName, subject: d.Subject, class: d.class }))
-                res.locals.subjects = topicnames;
-                if (req.body) {
-                }
 
-            })
-        // Attach data to res.locals to make it available in all routes
-        next();
-    } catch (err) {
-        console.error('Error fetching data from the database:', err);
-        next(err);
-    }
+//--------------------------gridfs-------------------------------------------------------------
+let gfs
+conn.once('open', () => {
+
+
+    gridFSBucket = new mongoose.mongo.GridFSBucket(conn.db, {
+        bucketName: 'uploads'
+    });
+    gfs = Grid(conn.db, mongoose.mongo);
+    gfs.collection('uploads');
 });
 
 
-function removeDuplicates(arr) {
-    return arr.filter((value, index, self) => self.indexOf(value) === index);
-}
-
-
-app.get('/', function (req, res) {
-    const collectionName = 'articles';
-    let db = firebase.firestore()
-    db.collection(collectionName)
-        .get()
-        .then((querySnapshot) => {
-            const articles = [];
-            querySnapshot.forEach((doc) => {
-                articles.push(doc.data());
-            });
-            let updatedarticles = fetchdata(articles).filter(item => !Array.isArray(item))
-            let k = 'default'
-            let m = 'default'
-            let l = 'default'
-            res.send({ articles: JSON.stringify(updatedarticles), allarticles: articles, goback: JSON.stringify(l), alltopics: filterDuplicates(res.locals.subjects), alltop: JSON.stringify(res.locals.subjects), grade: JSON.stringify(k), topic: JSON.stringify(m) })
-            // res.render('allArticles.ejs', { articles: JSON.stringify(updatedarticles), allarticles: articles, goback: JSON.stringify(l), alltopics: filterDuplicates(res.locals.subjects), alltop: JSON.stringify(res.locals.subjects), grade:JSON.stringify(k), topic:JSON.stringify(m)});
-        })
-        .catch((error) => {
-            console.log('Error getting documents:', error);
-        });
-})
-
-function filterDuplicates(d) {
-    let b = []
-    let m = []
-    d.forEach(e => {
-        let j = m.find(p => p == e.class)
-        if (!j) {
-            b.push(e)
-            m.push(e.class)
-        }
-    })
-    return b
-}
-
-
-function fetchdata(data) {
-    let d = []
-    data.forEach((e) => {
-        if (Object.keys(e).length != 0) {
-            let keys = Object.keys(e)
-            keys.forEach((key) => {
-                d.push(e[key])
-            })
-        }
-    })
-    return d
-}
-
-app.get('/searchAns', (req, res) => {
-    let db = firebase.firestore()
-    db.collection('articles')
-        .get()
-        .then((querySnapshot) => {
-            const articles = [];
-            querySnapshot.forEach((doc) => {
-                articles.push(doc.data());
-            });
-            let updatedarticles = fetchdata(articles)
-            //console.log(articles[5])
-
-            res.render('searchAnswers.ejs', { articles: JSON.stringify(articles[5]), documents: JSON.stringify(articles[0]) });
-        })
-        .catch((error) => {
-            console.log('Error getting documents:', error);
-        });
-})
-
-app.post('/getAll', (req, res) => {
-    const collectionName = 'articles';
-    let db = firebase.firestore()
-    db.collection(collectionName)
-        .get()
-        .then((querySnapshot) => {
-            const articles = [];
-            querySnapshot.forEach((doc) => {
-                if (doc != null) {
-                    articles.push(doc.data());
+const storage = new GridFsStorage({
+    url: process.env.URL,
+    file: (req, file) => {
+        return new Promise((resolve, reject) => {
+            crypto.randomBytes(16, (err, buf) => {
+                if (err) {
+                    return reject(err);
                 }
+                const filename = buf.toString('hex') + path.extname(file.originalname);
+                const fileInfo = {
+                    filename: filename,
+                    bucketName: 'uploads'
+                };
+                resolve(fileInfo);
             });
-            let refinedArticles = fetchdata(articles)
-            let topicnames = refinedArticles.map(d => d.topicName).filter(dv => dv != null)
-            res.send({ alltopicnames: topicnames });
-        })
-        .catch((error) => {
-            console.log('Error getting documents:', error);
         });
-})
-
-
-app.post('/goBack', (req, res) => {
-    let a = []
-
-    const collectionName = 'articles';
-    let db = firebase.firestore()
-   // console.log(req.body)
-    filter1 = req.body.grade
-    filter2 = req.body.subject
-    filter3 = req.body.topicnames
-    // req.session.grade = filter1
-    // req.session.topic = filter3
-    console.log(req.session)
-
-    db.collection(collectionName)
-        .get()
-        .then((querySnapshot) => {
-            const articles = [];
-            querySnapshot.forEach((doc) => {
-                articles.push(doc.data());
-            });
-            let refinedA = fetchdata(articles).filter(item => !Array.isArray(item))
-            if (filter3 != 'default' && filter1 != 'default') {
-                updateddata = refinedA
-            }
-            else if (filter1 != 'default' && filter3 == 'default') {
-                updateddata = refinedA.filter(e => e.class == filter1)
-            }
-            else if (filter1 == 'default' && filter3 != 'default') {
-                updateddata = refinedA.filter(e => e.topicName == filter3)
-            }
-            else {
-                updateddata = refinedA
-            }
-            res.send({
-                articles: JSON.stringify(updateddata), allarticles: updateddata, goback: JSON.stringify(documentId), alltopics: res.locals.subjects, alltop: JSON.stringify(filter2)
-                , grade: JSON.stringify(filter1), topic: JSON.stringify(filter3)
-            })
-        })
-        .catch((error) => {
-            console.log('Error getting documents:', error);
-        });
-})
-
-function fetchdata1(data) {
-    let d = []
-    for (const e in data) {
-        d.push(data[e])
     }
-    return d
-}
+});
 
-app.post('/docdata', function (req, res) {
-    const collectionName = 'articles';
-    const documentId = req.body.subject;
-    let filter1 = req.body.topic
-    let filter2 = req.body.grade
-    req.session.topic = filter1
-    req.session.grade = filter2
-    req.session.subject = documentId
-    let db = firebase.firestore()
-    if (documentId != "All" && documentId != 'default') {
-        let updateddata
-        const docRef = db.collection(collectionName).doc(documentId);
-        docRef.get()
-            .then((doc) => {
-                if (doc.exists) {
-                    const data = doc.data();
-                    let filterdupdate = fetchdata1(data)
-                    if (filter2 != 'default' && filter1 != 'default') {
-                        updateddata = filterdupdate.filter(e => e.class == filter2 && e.topicName == filter1)
-                    }
-                    else if (filter2 != 'default') {
-                        updateddata = filterdupdate.filter(e => e.class == filter2)
-
-                    }
-                    else if (filter1 != 'default') {
-                        updateddata = filterdupdate.filter(e => e.topicName == filter1)
-
-                    }
-                    else {
-                        updateddata = filterdupdate
-                    }
-
-                    res.send({
-                        articles: data,
-                        topics: res.locals.subjects,
-                        sendata: updateddata
-                    })
-                } else {
-                    console.log('Document not found!');
-                }
-            })
-            .catch((error) => {
-                console.log('Error getting document:', error);
-            });
-
-    } else if (documentId == "All" || documentId == 'default') {
-        db.collection(collectionName)
-            .get()
-            .then((querySnapshot) => {
-                const articles = [];
-                querySnapshot.forEach((doc) => {
-                    articles.push(doc.data());
-                });
-
-                let filterdupdate = fetchdata(articles).filter(item => !Array.isArray(item))
-                if (filter2 != 'default' && filter1 != 'default') {
-                    updateddata = filterdupdate.filter(e => e.class == filter2 && e.topicName == filter1)
-                }
-                else if (filter2 != 'default') {
-                    updateddata = filterdupdate.filter(e => e.class == filter2)
-
-                }
-                else if (filter1 != 'default') {
-                    updateddata = filterdupdate.filter(e => e.topicName == filter1)
-
-                }
-                else {
-                    updateddata = filterdupdate
-                }
-                res.send({
-                    sendata: updateddata,
-                    topics: res.locals.subjects
-                })
-            })
-            .catch((error) => {
-                console.log('Error getting documents:', error);
-            });
-    }
-    else {
-        console.log(documentId)
-    }
-})
-
-app.post('/fetchPage', function (req, res) {
-    // req.session.grade=req.body.privi.grade
-    // req.session.topic=req.body.privi.topic
-    // req.session.subject=req.body.privi.subject
-    // console.log(req.session)
-    res.send({ articledata: req.body.articlevalue,previousdata:req.body.privi })
-})
-
-app.set("view engine", "hbs")
+const upload = multer({ storage });
 app.set("view engine", "ejs")
-app.use(express.static('public'));
-app.set("views", setpath)
+var MongoClient = require("mongodb").MongoClient;
+
+MongoClient.connect(process.env.URL, { useNewUrlParser: true }, function (error, client) {
+    var blog = client.db("blog")
+    console.log("DB connected")
+
+    app.get("/myprofile", (req, res) => {
+        res.clearCookie('admin')
+        blog.collection("messages").find().sort({ _id: 1 }).toArray(function (error, mymessages) {
+            res.json({ messages: mymessages, messegeg: "You can send message now" })
+            // console.log(mymessages)
+        })
+    })
+
+    app.get("/myprofile/messagewithrav34897", (req, res) => {
+        // res.render('user/messaging')
+        res.send('start message')
+    })
+
+    app.get("/getform", (req, res) => {
+        res.cookie('username', req.query.username, {
+            maxAge: 300000
+        })
+        res.cookie('password', req.query.password, {
+            maxAge: 300000
+        })
+        // blog.collection("messages").find().sort({ _id: 1 }).toArray(function (error, mymessages) {
+        //     res.render("user/myprofile", { messages: mymessages, messegeg: "You can send message now" })
+        // })
+    })
+    
+
+    app.get('/logout', (req, res) => {
+        req.session.destroy(err => {
+            if (err) {
+                return res.status(500).send('Failed to logout');
+            }
+            res.send('Session destroyed successfully');
+        });
+    });
 
 
-//----------------------------------------newquizactions--------------------------------------
+    // app.post("/setUserSession", (req, res) => {
+    //     const { username, organization } = req.body;
+    
+    //     // Set cookies for username and organization
+    //     res.cookie('username', username, {
+    //         maxAge: 300000,  // Cookie valid for 5 minutes
+    //         httpOnly: true,  // Helps prevent cross-site scripting attacks
+    //         secure: false    // Set to true if using HTTPS
+    //     });
+        
+    //     res.cookie('organization', organization, {
+    //         maxAge: 300000,
+    //         httpOnly: true,
+    //         secure: false
+    //     });
+    
+    //     res.send('Session created successfully');
+    // });
+    // app.post("/myprofile/sendmessage", (req, res) => {
+    //     console.log(req.cookies)
+    //     console.log(req.cookies.username)
 
-const PORT = process.env.PORT
-http.listen(PORT || 8800, () => {
-    console.log("listening")
-})
+    //     if (req.cookies.username) {
+    //         blog.collection("messages").insertOne({
+    //             "username": req.cookies.username,
+    //             "password": req.cookies.password,
+    //             "message": req.body.comment,
+    //         }, function (error, data) {
+    //             res.json({
+    //                 'username': req.cookies.username,
+    //                 'password': req.cookies.password,
+    //                 'comment': req.body.comment
+    //             })
+    //         })
+    //     } else {
+    //         res.json({
+    //             'comment': "Not logged in"
+    //         })
+    //     }
+    // })
 
+    app.post("/setUserSession", (req, res) => {
+        const { username, organization } = req.body;
+        
+        // Set session data
+        req.session.username = username;
+        req.session.organization = organization;
 
-function writeBinaryJson(jsonData, filePath) {
-    fs.writeFile(filePath, jsonString, 'utf-8', (err) => {
-        if (err) {
-            console.error(`Error writing to file: ${err}`);
+        res.send("Session created successfully");
+    });
+    
+    // Route to access session data and send message
+    app.post("/myprofile/sendmessage", (req, res) => {
+        if (req.body.username) {
+            // Using session data instead of cookies
+            blog.collection("messages").insertOne({
+                "username": req.body.username,
+                "organization": req.body.organization,
+                "message": req.body.comment,
+            }, function (error, data) {
+                if (error) {
+                    return res.status(500).send("Error saving message");
+                }
+                res.json({
+                    'username': req.body.username,
+                    'organization': req.body.organization,
+                    'comment': req.body.comment
+                });
+            });
         } else {
-            // console.log('JSON data written to note.txt');
+            res.json({
+                'comment': "Not logged in"
+            });
         }
     });
-}
-const jsonData = [
-    { "id": 1, "content": "Note 1" },
-    { "id": 2, "content": "Note 2" },
-    { "id": 3, "content": "Note 3" }
-];
+    
 
-// Convert JSON data to a string
-const jsonString = JSON.stringify(jsonData, null, 2); // The '2' argument adds indentation for better readability
+    app.get("/terminatesession", (req, res) => {
+        res.clearCookie('username')
+        res.clearCookie('password')
+        res.clearCookie('admin')
+        res.redirect("/myprofile")
+    })
 
-// Specify the file path
-const filePath = './note.txt';
+    //-----------------------------------------------------------------------------------------------
+    http.listen(process.env.PORT || 3000, function () {
+        console.log("connected")
 
-// Write JSON array to binary file
-writeBinaryJson(jsonString, filePath);
-
-function readBinaryJson(filePath) {
-    // Read the binary data from the file
-    fs.readFile(filePath, 'utf-8', (err, data) => {
-        if (err) {
-            console.error(`Error reading file: ${err}`);
-            return;
-        }
-
-        // Parse the JSON data
-        try {
-            const jsonArray = JSON.parse(data);
-
-            // Now 'jsonArray' contains the parsed array data
-        } catch (parseError) {
-            console.error(`Error parsing JSON: ${parseError}`);
-        }
-    });
-}
-
-// Read JSON array from binary file
-const retrievedJsonArray = readBinaryJson(filePath);
-
-// Print the retrieved JSON array
-
-
-app.get("/verify-email", function (req, res) {
-    if (req.query.token) {
-        const decodedToken = jwt.verify(req.query.token, process.env.KEY_NEW)
-        username = decodedToken.username
-        email = decodedToken.email
-        if (decodedToken.isadmin == true) {
-            req.session.username = decodedToken.username
-            req.session.email = decodedToken.email
-            req.session.isadmin = decodedToken.isadmin
-            res.redirect('/')
-        }
-        else {
-            req.session.destroy()
-            res.send("something wrong please contact")
-        }
-    }
-    else {
-    }
-
+    })
 })
