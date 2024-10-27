@@ -4,8 +4,6 @@ var session = require("express-session")
 const mongoose = require('mongoose')
 const cookieparser = require('cookie-parser')
 const cors = require('cors');
-const crypto = require('crypto');
-const nodemailer = require('nodemailer')
 const { GridFsStorage } = require('multer-gridfs-storage');
 const Grid = require('gridfs-stream');
 ///const methodOverride = require('method-override');
@@ -38,7 +36,6 @@ app.use(bodyParser.json());
 //   );
   
 const MongodbSession = require('connect-mongodb-session')(session);
-console.log(process.env.URL)
 const store = new MongodbSession({
     uri: process.env.URL,
     collection: "mysessions",
@@ -59,9 +56,7 @@ app.use(cors({
     origin: "https://rav39439.github.io/ArticleJavascript.github.io" // Allow requests only from this origin
 }));
 
-const bcrypt = require('bcrypt');
 var bodyParser = require("body-parser")
-var ObjectId = require("mongodb").ObjectId
 app.use(bodyParser.urlencoded())
 app.get('/public', express.static('public'));
 app.use(express.static('public'));
