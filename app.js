@@ -2,7 +2,6 @@ var express = require("express")
 const path = require('path')
 var session = require("express-session")
 const mongoose = require('mongoose')
-const jwt = require('jsonwebtoken')
 const cookieparser = require('cookie-parser')
 const cors = require('cors');
 const crypto = require('crypto');
@@ -131,7 +130,6 @@ const storage = new GridFsStorage({
 });
 
 const upload = multer({ storage });
-app.set("view engine", "ejs")
 var MongoClient = require("mongodb").MongoClient;
 
 MongoClient.connect(process.env.URL, { useNewUrlParser: true }, function (error, client) {
