@@ -51,13 +51,13 @@ var http = require("http").createServer(app)
 var io = require("socket.io")(http, {
     cors: {
         // origin: "https://newblogecomm.herokuapp.com/",
-        origin: "http://127.0.0.1:5500",
+        origin: "https://rav39439.github.io/ArticleJavascript.github.io",
         credentials: true
     }
 })
 
 app.use(cors({
-    origin: "http://127.0.0.1:5500" // Allow requests only from this origin
+    origin: "https://rav39439.github.io/ArticleJavascript.github.io" // Allow requests only from this origin
 }));
 
 const bcrypt = require('bcrypt');
@@ -78,7 +78,7 @@ app.use("/public", express.static(__dirname + "/public"))
 
 
 app.use(session({
-    secret: "your_secret_key", // Replace with a secure key in production
+    secret:process.env.YURL, // Replace with a secure key in production
     resave: false,
     saveUninitialized: false,
     store: store,
