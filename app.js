@@ -47,13 +47,13 @@ var http = require("http").createServer(app)
 var io = require("socket.io")(http, {
     cors: {
         // origin: "https://newblogecomm.herokuapp.com/",
-        origin: "https://rav39439.github.io/ArticleJavascript.github.io",
+        origin: "https://rav39439.github.io",
         credentials: true
     }
 })
 
 app.use(cors({
-    origin: "https://rav39439.github.io/ArticleJavascript.github.io" // Allow requests only from this origin
+    origin: "https://rav39439.github.io" // Allow requests only from this origin
 }));
 
 var bodyParser = require("body-parser")
